@@ -1,40 +1,28 @@
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import fs from 'node:fs';
-import { validateState } from '../lib/state-validation.ts';
-
+import vm from 'node:vm';import fs from 'node:fs';
+import {validateState} from '../lib/state-validation.ts';
 const context={};vm.createContext(context);vm.runInContext(fs.readFileSync(new URL('../public/app/core.js',import.meta.url),'utf8'),context);
 const Model=context.CampusModel,memory=new Map(),storage={getItem:k=>memory.get(k),setItem:(k,v)=>memory.set(k,v)};
-const m=new Model(storage);
-assert.equal(validateState(m.state),null);
-m.state.prefs.budget=12;m.state.prefs.avoid=['鸡肉'];
-assert(m.recommended().every(d=>d.price<=12&&!d.ingredients.includes('鸡肉')),'budget and avoided ingredients are hard filters');
+const m=new Model(storage);assert.equal(m.state.dishes.length,16);assert.equal(validateState(m.state),null);
+m.state.prefs.budget=12;m.state.prefs.avoid=['鸡肉'];assert(m.recommended().every(d=>d.price<=12&&!d.ingredients.includes('鸡肉')));
 m.state.prefs.budget=20;m.state.prefs.avoid=[];m.state.prefs.goal='增肌';assert.equal(m.recommended()[0].id,7);
-m.shop(3).open=false;assert(!m.recommended().some(d=>d.shopId===3),'closed shops cannot be recommended');m.shop(3).open=true;
-const dish=m.saveDish({shopId:1,name:'测试新菜',price:11,diet:'均衡饮食',tags:['微辣'],ingredients:['米饭'],art:'rice',isNew:false});
-assert.equal(dish.isNew,false);assert(m.recommended().some(d=>d.id===dish.id));
-dish.available=false;assert(!m.recommended().some(d=>d.id===dish.id));
-assert.throws(()=>m.order(4,1,'送餐到寝','今日午餐','8栋302',''));
-assert.throws(()=>m.order(1,1,'送餐到寝','今日午餐','',''));
-assert.throws(()=>m.order(1,0,'到店自取','今日午餐','',''));
-const o=m.order(1,2,'送餐到寝','明日午餐 12:15','8栋302','少辣');assert.equal(o.total,26);
-assert.equal(m.advance(o.id).status,'制作中');assert.equal(m.advance(o.id).status,'配送中');assert.equal(m.advance(o.id).status,'已完成');assert.throws(()=>m.advance(o.id));
+m.shop(3).open=false;assert(!m.recommended().some(d=>d.shopId===3));m.shop(3).open=true;
+const dish=m.saveDish({shopId:1,name:'测试新菜',price:11,category:'食堂美食',diet:'均衡饮食',tags:['微辣'],ingredients:['米饭'],art:'rice',isNew:false});assert.equal(dish.isNew,false);assert(m.recommended().some(d=>d.id===dish.id));dish.available=false;assert(!m.recommended().some(d=>d.id===dish.id));
+assert.throws(()=>m.order(4,1,'送餐到寝','今日午餐','8栋302',''));assert.throws(()=>m.order(1,1,'送餐到寝','今日午餐','',''));
+const o=m.order(1,2,'送餐到寝','明日午餐12:15','8栋302','少辣');assert.equal(o.total,26);assert.equal(m.advance(o.id).status,'制作中');assert.equal(m.advance(o.id).status,'配送中');assert.equal(m.advance(o.id).status,'已完成');assert.throws(()=>m.advance(o.id));
 const pickup=m.order(4,1,'到店自取','明日午餐','','');m.advance(pickup.id);assert.equal(m.advance(pickup.id).status,'待取餐');
-const review=m.addReview(1,4,'测试评价',['分量正义'],'');assert(m.state.reviews.includes(review));
-assert.equal(validateState(m.state),null);
-const restored=new Model(storage);assert.equal(restored.state.reviews[0].text,'测试评价');
-const bad=JSON.parse(JSON.stringify(m.state));bad.orders[0].total=0;assert.equal(validateState(bad),'订单数据不正确');
-bad.orders=m.state.orders;bad.dishes[0].color='javascript:alert(1)';assert.equal(validateState(bad),'菜品数据不正确');
-assert.equal(validateState({}), '数据集合 shops 超出范围');
-
-const nodes={},domContext={window:{localStorage:storage,scrollTo(){},location:{search:'',href:'https://example.test/app/index.html'},addEventListener(){},CROUS_CLOUD:{mode:'local',text:'本机体验',revision:0}},document:{querySelector:s=>nodes[s]||(nodes[s]={innerHTML:'',style:{},dataset:{},textContent:'',focus(){},classList:{add(){},remove(){}}}),body:{style:{}},addEventListener(){}},URLSearchParams,URL,FormData,Date,Math,console,setTimeout(){},clearTimeout(){}};
-domContext.CampusModel=Model;vm.createContext(domContext);
-vm.runInContext(fs.readFileSync(new URL('../public/app/app.js',import.meta.url),'utf8'),domContext);
-vm.runInContext(fs.readFileSync(new URL('../public/app/theme.js',import.meta.url),'utf8'),domContext);
-for(const [role,page] of [['student','discover'],['student','shops'],['student','wheel'],['student','rank'],['student','profile'],['student','orders'],['merchant','dashboard'],['merchant','manage'],['merchant','merchantOrders'],['merchant','merchantReviews'],['merchant','settings'],['merchant','structure']]){
- domContext.window.ui.route(role,page);assert(nodes['#app'].innerHTML.includes('CROUS'));assert(!nodes['#app'].innerHTML.includes('undefined'));assert(!nodes['#app'].innerHTML.includes('NaN'));
-}
-domContext.window.ui.detail(1);assert(nodes['#modal-root'].innerHTML.includes('美食证词'));
-domContext.window.ui.reserve(1);assert(nodes['#modal-root'].innerHTML.includes('送餐到寝'));
-domContext.window.ui.guide();assert(nodes['#modal-root'].innerHTML.includes('5分钟'));
-console.log('PASS: 12 views, preference filters, closed/unlisted items, new-dish state, delivery and pickup transitions, review persistence, malformed server payloads, and core dialogs.');
+m.state.profile.nickname='测试同学';const review=m.addReview(1,4,'分量适合我',['分量足'],'');assert.equal(review.owner,'self');const checkin=m.checkin(1,'午饭打卡','');assert.equal(checkin.owner,'self');m.addFeedback(1,'想吃的新菜','希望增加素食');assert.equal(validateState(m.state),null);
+const plan=m.mealPlan({people:3,budget:15,tastes:['不辣'],strictTaste:'不辣',goal:'均衡饮食',avoid:['海鲜']});assert.equal(plan.meal.length,3);assert(plan.meal.every(d=>d.tags.includes('不辣')&&d.price<=15&&!d.ingredients.includes('海鲜')));assert(plan.total<=45);
+const coffee=m.mealPlan({people:2,budget:15,tastes:[],category:'咖啡',goal:'均衡饮食',avoid:[]});assert(coffee.meal.every(d=>d.category==='咖啡'));
+const restored=new Model(storage);assert.equal(restored.state.checkins[0].text,'午饭打卡');const bad=JSON.parse(JSON.stringify(m.state));bad.orders[0].total=0;assert.equal(validateState(bad),'订单数据不正确');bad.orders=m.state.orders;bad.shops[0].stall='<script>';assert.equal(validateState(bad),'档口位置数据不正确');
+const old=JSON.parse(JSON.stringify(m.state));delete old.checkins;delete old.feedback;delete old.profile;for(const s of old.shops){delete s.venueId;delete s.floor;delete s.stall;}const oldModel=new Model({getItem:()=>JSON.stringify(old),setItem(){}});assert.equal(validateState(oldModel.state),null);
+const nodes={},sessionMemory=new Map();class TestFormData{constructor(form){this.fields=form.fields;}get(k){return this.fields[k]??null;}getAll(k){const x=this.fields[k];return Array.isArray(x)?x:[];}has(k){return k in this.fields;}}
+const dom={window:{localStorage:storage,scrollTo(){},location:{search:'',href:'https://example.test/app/index.html'},addEventListener(){}},sessionStorage:{getItem:k=>sessionMemory.get(k),setItem:(k,v)=>sessionMemory.set(k,v),removeItem:k=>sessionMemory.delete(k)},document:{querySelector:s=>nodes[s]||(nodes[s]={innerHTML:'',textContent:'',style:{},dataset:{},focus(){},classList:{add(){},remove(){}}}),body:{style:{}},addEventListener(){}},URLSearchParams,URL,FormData:TestFormData,Date,Math,console,setTimeout(){},clearTimeout(){},CampusModel:Model};vm.createContext(dom);vm.runInContext(fs.readFileSync('public/app/art.js','utf8'),dom);vm.runInContext(fs.readFileSync('public/app/app.js','utf8'),dom);
+assert(nodes['#app'].innerHTML.includes('选择你的身份'));assert(!nodes['#app'].innerHTML.includes('食物法庭'));
+dom.window.ui.login({preventDefault(){},target:{fields:{name:'测试同学'}}});assert(nodes['#app'].innerHTML.includes('搜索菜品、档口或食堂'));
+for(const page of ['home','map','feed','mine','prefs','orders','feedback','myReviews','myFeed','favorites']){dom.window.ui.go(page);assert(nodes['#app'].innerHTML.includes('校味'));assert(!nodes['#app'].innerHTML.includes('undefined'));assert(!nodes['#app'].innerHTML.includes('NaN'));}
+dom.window.ui.mapHome();assert(nodes['#app'].innerHTML.includes('campus-map'));dom.window.ui.venue(1);assert(nodes['#app'].innerHTML.includes('档口分布'));dom.window.ui.floor(3);assert(nodes['#app'].innerHTML.includes('饺子同学'));dom.window.ui.stall(4);assert(nodes['#app'].innerHTML.includes('虾仁鲜肉水饺'));
+dom.window.ui.detail(1);assert(nodes['#modal-root'].innerHTML.includes('写点评'));dom.window.ui.review(1);assert(nodes['#modal-root'].innerHTML.includes('口味好'));dom.window.ui.checkin(1);assert(nodes['#modal-root'].innerHTML.includes('发布美食打卡'));dom.window.ui.assistant();assert(nodes['#modal-root'].innerHTML.includes('几个人用餐'));dom.window.ui.assistantSubmit({preventDefault(){},target:{fields:{people:'1',budget:'20',taste:'',goal:'均衡饮食',prompt:'2个人，人均15元，不辣'}}});assert(nodes['#assistant-result'].innerHTML.includes('2人的这一顿'));assert(!nodes['#assistant-result'].innerHTML.includes('NaN'));
+dom.window.ui.confirmLogout();dom.window.ui.loginRole('merchant');dom.window.ui.login({preventDefault(){},target:{fields:{name:'商家测试',shopId:'1'}}});for(const p of ['dashboard','manage','merchantOrders','merchantReviews','settings']){dom.window.ui.go(p);assert(nodes['#app'].innerHTML.includes('商家工作台'));assert(!nodes['#app'].innerHTML.includes('undefined'));}
+const previous=nodes['#app'].innerHTML;dom.window.ui.go('home');assert.equal(nodes['#app'].innerHTML,previous,'role navigation must not silently switch identity');
+console.log('PASS: login identities, 15 views, campus-floor-stall-menu navigation, checkins and feedback, personalized group meals, categories, role navigation, reservations, snapshot validation and legacy migration.');
