@@ -2,7 +2,7 @@
 
 校味帮助同学发现食堂好味道、查看真实感受、打卡记录和反馈建议，轻松决定每天想吃什么。
 
-**[在线版本](https://campus-flavors.dengmxi.chatgpt.site)** · **[项目说明](docs/PRODUCT.md)** · **[技术路线](docs/TECHNICAL.md)** · **[验证记录](docs/VALIDATION.md)** · **[单文件体验版](standalone/xiaowei-demo.html)**
+**[在线版本](https://xiaowei-q9d8.onrender.com)** · **[项目说明](docs/PRODUCT.md)** · **[技术路线](docs/TECHNICAL.md)** · **[验证记录](docs/VALIDATION.md)** · **[单文件体验版](standalone/xiaowei-demo.html)**
 
 ## 这次重构
 
