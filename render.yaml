@@ -1,0 +1,13 @@
+# Public, browser-local 校味 demo. No Node/Cloudflare runtime required.
+services:
+  - type: web
+    name: xiaowei-campus
+    runtime: static
+    branch: main
+    rootDir: docs
+    buildCommand: test -s index.html
+    staticPublishPath: .
+    autoDeployTrigger: commit
+    envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
